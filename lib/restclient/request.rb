@@ -145,6 +145,7 @@ module RestClient
     end
 
     def transmit uri, req, payload, & block
+      req.body_stream = payload.stream if payload
       setup_credentials req
 
       net = net_http_class.new(uri.host, uri.port)
@@ -187,9 +188,9 @@ module RestClient
 
       net.start do |http|
         if @block_response
-          http.request(req, payload ? payload.to_s : nil, & @block_response)
+          http.request(req, &@block_response)
         else
-          res = http.request(req, payload ? payload.to_s : nil) { |http_response| fetch_body(http_response) }
+          res = http.request(req) { |http_response| fetch_body(http_response) }
           log_response res
           process_result res, & block
         end
