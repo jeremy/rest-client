@@ -1,6 +1,7 @@
 require 'tempfile'
 require 'mime/types'
 require 'cgi'
+require 'netrc'
 
 module RestClient
   # This class is used internally by RestClient to send the request, but you can also
@@ -20,7 +21,7 @@ module RestClient
   # * :raw_response return a low-level RawResponse instead of a Response
   # * :max_redirects maximum number of redirections (default to 10)
   # * :verify_ssl enable ssl verification, possible values are constants from OpenSSL::SSL
-  # * :timeout and :open_timeout passing in -1 will disable the timeout by setting the corresponding net timeout values to nil
+  # * :timeout and :open_timeout are how long to wait for a response and to open a connection, in seconds. Pass nil to disable the timeout.
   # * :ssl_client_cert, :ssl_client_key, :ssl_ca_file
   class Request
 
@@ -45,8 +46,12 @@ module RestClient
       @payload = Payload.generate(args[:payload])
       @user = args[:user]
       @password = args[:password]
-      @timeout = args[:timeout]
-      @open_timeout = args[:open_timeout]
+      if args.include?(:timeout)
+        @timeout = args[:timeout]
+      end
+      if args.include?(:open_timeout)
+        @open_timeout = args[:open_timeout]
+      end
       @block_response = args[:block_response]
       @raw_response = args[:raw_response] || false
       @verify_ssl = args[:verify_ssl] || false
@@ -87,7 +92,7 @@ module RestClient
 
     def make_headers user_headers
       unless @cookies.empty?
-        user_headers[:cookie] = @cookies.map { |(key, val)| "#{key.to_s}=#{CGI::unescape(val)}" }.sort.join('; ')
+        user_headers[:cookie] = @cookies.map { |(key, val)| "#{key.to_s}=#{CGI::unescape(val.to_s)}" }.sort.join('; ')
       end
       headers = stringify_headers(default_headers).merge(stringify_headers(user_headers))
       headers.merge!(@payload.headers) if @payload
@@ -116,6 +121,9 @@ module RestClient
       uri = parse_url(url)
       @user = CGI.unescape(uri.user) if uri.user
       @password = CGI.unescape(uri.password) if uri.password
+      if !@user && !@password
+        @user, @password = Netrc.read[uri.host]
+      end
       uri
     end
 
@@ -156,12 +164,20 @@ module RestClient
       net.cert = @ssl_client_cert if @ssl_client_cert
       net.key = @ssl_client_key if @ssl_client_key
       net.ca_file = @ssl_ca_file if @ssl_ca_file
-      net.read_timeout = @timeout if @timeout
-      net.open_timeout = @open_timeout if @open_timeout
-
-      # disable the timeout if the timeout value is -1
-      net.read_timeout = nil if @timeout == -1
-      net.out_timeout = nil if @open_timeout == -1
+      if defined? @timeout
+        if @timeout == -1
+          warn 'To disable read timeouts, please set timeout to nil instead of -1'
+          @timeout = nil
+        end
+        net.read_timeout = @timeout
+      end
+      if defined? @open_timeout
+        if @open_timeout == -1
+          warn 'To disable open timeouts, please set open_timeout to nil instead of -1'
+          @open_timeout = nil
+        end
+        net.open_timeout = @open_timeout
+      end
 
       RestClient.before_execution_procs.each do |before_proc|
         before_proc.call(req, args)
