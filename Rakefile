@@ -1,5 +1,6 @@
+require 'rubygems'
+require 'bundler/setup'
 require 'rake'
-
 require 'jeweler'
 
 Jeweler::Tasks.new do |s|
@@ -9,9 +10,10 @@ Jeweler::Tasks.new do |s|
   s.authors = ["Adam Wiggins", "Julien Kirch"]
   s.email = "rest.client@librelist.com"
   s.homepage = "http://github.com/archiloque/rest-client"
-  s.files = FileList["[A-Z]*", "{bin,lib,spec}/**/*"]
+  s.files = FileList["[A-Z]*", "{bin,lib,spec}/**/*"] - %w(Gemfile.lock)
   s.test_files = FileList["{spec}/**/*"]
   s.add_runtime_dependency("mime-types", "~> 1.16")
+  s.add_runtime_dependency("netrc")
   s.add_development_dependency("webmock", ">= 0.9.1")
   s.add_development_dependency("rspec")
   s.extra_rdoc_files = [ 'README.rdoc', 'history.md']
@@ -53,7 +55,7 @@ task :default => :spec
 
 ############################
 
-require 'rake/rdoctask'
+require 'rdoc/task'
 
 Rake::RDocTask.new do |t|
   t.rdoc_dir = 'rdoc'
