@@ -11,7 +11,7 @@ Jeweler::Tasks.new do |s|
   s.homepage = "http://github.com/archiloque/rest-client"
   s.files = FileList["[A-Z]*", "{bin,lib,spec}/**/*"]
   s.test_files = FileList["{spec}/**/*"]
-  s.add_runtime_dependency("mime-types", ">= 1.16")
+  s.add_runtime_dependency("mime-types", "~> 1.16")
   s.add_development_dependency("webmock", ">= 0.9.1")
   s.add_development_dependency("rspec")
   s.extra_rdoc_files = [ 'README.rdoc', 'history.md']
