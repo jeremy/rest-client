@@ -111,8 +111,7 @@ describe RestClient::Request do
 
   it "uses netrc credentials" do
     URI.stub!(:parse).and_return(mock('uri', :user => nil, :password => nil, :host => 'example.com'))
-    File.stub!(:stat).and_return(mock('stat', :mode => 0600))
-    IO.stub!(:readlines).and_return(["machine example.com login a password b"])
+    Netrc.stub(:read).and_return('example.com' => ['a', 'b'])
     @request.parse_url_with_auth('http://example.com/resource')
     @request.user.should == 'a'
     @request.password.should == 'b'
@@ -120,8 +119,7 @@ describe RestClient::Request do
 
   it "uses credentials in the url in preference to netrc" do
     URI.stub!(:parse).and_return(mock('uri', :user => 'joe%20', :password => 'pass1', :host => 'example.com'))
-    File.stub!(:stat).and_return(mock('stat', :mode => 0600))
-    IO.stub!(:readlines).and_return(["machine example.com login a password b"])
+    Netrc.stub(:read).and_return('example.com' => ['a', 'b'])
     @request.parse_url_with_auth('http://joe%20:pass1@example.com/resource')
     @request.user.should == 'joe '
     @request.password.should == 'pass1'
@@ -206,14 +204,14 @@ describe RestClient::Request do
   end
 
   it "transmits the request with Net::HTTP" do
-    @http.should_receive(:request).with('req', 'payload')
+    @http.should_receive(:request).with('req')
     @request.should_receive(:process_result)
-    @request.transmit(@uri, 'req', 'payload')
+    @request.transmit(@uri, 'req', nil)
   end
 
   describe "payload" do
     it "sends nil payloads" do
-      @http.should_receive(:request).with('req', nil)
+      @http.should_receive(:request).with('req')
       @request.should_receive(:process_result)
       @request.stub!(:response_log)
       @request.transmit(@uri, 'req', nil)
@@ -385,7 +383,7 @@ describe RestClient::Request do
       @net.should_not_receive(:read_timeout=)
       @net.should_not_receive(:open_timeout=)
 
-      @request.transmit(@uri, 'req', nil)
+      @request.execute
     end
 
     it "set read_timeout" do
@@ -396,7 +394,7 @@ describe RestClient::Request do
 
       @net.should_receive(:read_timeout=).with(123)
 
-      @request.transmit(@uri, 'req', nil)
+      @request.execute
     end
 
     it "set open_timeout" do
@@ -407,7 +405,7 @@ describe RestClient::Request do
 
       @net.should_receive(:open_timeout=).with(123)
 
-      @request.transmit(@uri, 'req', nil)
+      @request.execute
     end
 
     it "disable timeout by setting it to nil" do
@@ -419,7 +417,7 @@ describe RestClient::Request do
       @net.should_receive(:read_timeout=).with(nil)
       @net.should_receive(:open_timeout=).with(nil)
 
-      @request.transmit(@uri, 'req', nil)
+      @request.execute
     end
 
     it "deprecated: disable timeout by setting it to -1" do
@@ -434,7 +432,7 @@ describe RestClient::Request do
       @request.should_receive(:warn)
       @net.should_receive(:open_timeout=).with(nil)
 
-      @request.transmit(@uri, 'req', nil)
+      @request.execute
     end
   end
 
@@ -445,7 +443,7 @@ describe RestClient::Request do
       @http.stub!(:request)
       @request.stub!(:process_result)
       @request.stub!(:response_log)
-      @request.transmit(@uri, 'req', 'payload')
+      @request.transmit(@uri, 'req', nil)
     end
 
     it "should default to not verifying ssl certificates" do
@@ -457,7 +455,7 @@ describe RestClient::Request do
       @http.stub!(:request)
       @request.stub!(:process_result)
       @request.stub!(:response_log)
-      @request.transmit(@uri, 'req', 'payload')
+      @request.execute
     end
 
     it "should not set net.verify_mode to OpenSSL::SSL::VERIFY_NONE if verify_ssl is true" do
@@ -466,7 +464,7 @@ describe RestClient::Request do
       @http.stub!(:request)
       @request.stub!(:process_result)
       @request.stub!(:response_log)
-      @request.transmit(@uri, 'req', 'payload')
+      @request.execute
     end
 
     it "should set net.verify_mode to the passed value if verify_ssl is an OpenSSL constant" do
@@ -480,7 +478,7 @@ describe RestClient::Request do
       @http.stub!(:request)
       @request.stub!(:process_result)
       @request.stub!(:response_log)
-      @request.transmit(@uri, 'req', 'payload')
+      @request.execute
     end
 
     it "should default to not having an ssl_client_cert" do
@@ -498,7 +496,7 @@ describe RestClient::Request do
       @http.stub!(:request)
       @request.stub!(:process_result)
       @request.stub!(:response_log)
-      @request.transmit(@uri, 'req', 'payload')
+      @request.execute
     end
 
     it "should not set the ssl_client_cert if it is not provided" do
@@ -511,7 +509,7 @@ describe RestClient::Request do
       @http.stub!(:request)
       @request.stub!(:process_result)
       @request.stub!(:response_log)
-      @request.transmit(@uri, 'req', 'payload')
+      @request.execute
     end
 
     it "should default to not having an ssl_client_key" do
@@ -529,7 +527,7 @@ describe RestClient::Request do
       @http.stub!(:request)
       @request.stub!(:process_result)
       @request.stub!(:response_log)
-      @request.transmit(@uri, 'req', 'payload')
+      @request.execute
     end
 
     it "should not set the ssl_client_key if it is not provided" do
@@ -542,7 +540,7 @@ describe RestClient::Request do
       @http.stub!(:request)
       @request.stub!(:process_result)
       @request.stub!(:response_log)
-      @request.transmit(@uri, 'req', 'payload')
+      @request.execute
     end
 
     it "should default to not having an ssl_ca_file" do
@@ -560,7 +558,7 @@ describe RestClient::Request do
       @http.stub!(:request)
       @request.stub!(:process_result)
       @request.stub!(:response_log)
-      @request.transmit(@uri, 'req', 'payload')
+      @request.execute
     end
 
     it "should not set the ssl_ca_file if it is not provided" do
@@ -573,7 +571,7 @@ describe RestClient::Request do
       @http.stub!(:request)
       @request.stub!(:process_result)
       @request.stub!(:response_log)
-      @request.transmit(@uri, 'req', 'payload')
+      @request.execute
     end
   end
 
@@ -586,7 +584,7 @@ describe RestClient::Request do
     net_http_res = Net::HTTPNoContent.new("", "204", "No Content")
     net_http_res.stub!(:read_body).and_return(nil)
     @http.should_receive(:request).and_return(@request.fetch_body(net_http_res))
-    response = @request.transmit(@uri, 'req', 'payload')
+    response = @request.execute
     response.should_not be_nil
     response.code.should == 204
   end
